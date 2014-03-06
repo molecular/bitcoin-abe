@@ -76,11 +76,13 @@ DEFAULT_TEMPLATE = """
     <p style="font-size: smaller">
         <span style="font-style: italic">
             Powered by <a href="%(ABE_URL)s">%(APPNAME)s</a>
+            | Run by molecular
+            | Please donate AUR: AL8vRddTujqaFJQ3feZpg1jYHz6Jv2Rkwc BTC: 19JVSnxJx7rM8V55s6SqXNb7PHG7Q2pcj7
         </span>
         %(download)s
-        Tips appreciated!
+        <!-- Tips appreciated!
         <a href="%(dotdot)saddress/%(DONATIONS_BTC)s">BTC</a>
-        <a href="%(dotdot)saddress/%(DONATIONS_NMC)s">NMC</a>
+        <a href="%(dotdot)saddress/%(DONATIONS_NMC)s">NMC</a> -->
     </p>
 </body>
 </html>
@@ -1138,6 +1140,9 @@ class Abe:
     def search_form(abe, page):
         q = (page['params'].get('q') or [''])[0]
         return [
+            '<p>Hello, this is pretty much a vanilla bitcoin-abe on AUR blockchain. Hoping it is useful to people.</p>'
+            '<p>To help improve this site (make it more stable, faster, more nice-looking and feature-rich), <br><b>please donate AUR: AL8vRddTujqaFJQ3feZpg1jYHz6Jv2Rkwc or BTC: 19JVSnxJx7rM8V55s6SqXNb7PHG7Q2pcj7</b></p>'
+            '<p><b>using server cluster, you are on server one (aur)</b></p>'
             '<p>Search by address, block number or hash, transaction or'
             ' public key hash, or chain name:</p>\n'
             '<form action="', page['dotdot'], 'search"><p>\n'
