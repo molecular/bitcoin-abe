@@ -40,8 +40,9 @@ appends to the file.  Prior to Bitcoin v0.8, this assumption seemed
 safe.  Abe may need some fixes to avoid skipping blocks while current
 and future Bitcoin versions run.
 
-NovaCoin support depends on the ltc_scrypt module available from
-https://github.com/CryptoManiac/bitcoin-abe (see README-SCRYPT.txt).
+NovaCoin and CryptoCash support depends on the ltc_scrypt module
+available from https://github.com/CryptoManiac/bitcoin-abe (see
+README-SCRYPT.txt).
 
 License
 -------
@@ -135,8 +136,8 @@ Note that "+=" adds to the existing datadir configuration, while "="
 replaces it.  For help with address_version, please open doc/FAQ.html
 in a web browser.
 
-The web interface is currently unaware of name and proof-of-stake
-transactions, but see namecoin_dump.py in the tools directory.
+The web interface is currently unaware of name transactions, but see
+namecoin_dump.py in the tools directory.
 
 More information
 ----------------

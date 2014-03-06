@@ -35,7 +35,7 @@ import util
 import logging
 import base58
 
-SCHEMA_VERSION = "Abe36"
+SCHEMA_VERSION = "Abe37"
 
 CONFIG_DEFAULTS = {
     "dbtype":             None,
@@ -75,6 +75,7 @@ CHAIN_CONFIG = [
     {"chain":"Worldcoin",
      "code3":"WDC", "address_version":"\x49", "magic":"\xfb\xc0\xb6\xdb"},
     {"chain":"NovaCoin"},
+    {"chain":"CryptoCash"},
     #{"chain":"",
     # "code3":"", "address_version":"\x", "magic":""},
     ]
@@ -694,6 +695,7 @@ class DataStore(object):
         store.datadirs = []
         for dircfg in store.args.datadir:
             loader = None
+            conf = None
 
             if isinstance(dircfg, dict):
                 #print("dircfg is dict: %r" % dircfg)  # XXX
@@ -704,13 +706,15 @@ class DataStore(object):
                         + str(dircfg))
                 if dirname in datadirs:
                     d = datadirs[dirname]
-                    d['loader'] = dircfg.get('loader', None)
+                    d['loader'] = dircfg.get('loader')
+                    d['conf'] = dircfg.get('conf')
                     if d['chain_id'] is None and 'chain' in dircfg:
                         d['chain_id'] = lookup_chain_id(dircfg['chain'])
                     store.datadirs.append(d)
                     continue
 
-                loader = dircfg.get('loader', None)
+                loader = dircfg.get('loader')
+                conf = dircfg.get('conf')
                 chain_id = dircfg.get('chain_id')
                 if chain_id is None:
                     chain_name = dircfg.get('chain')
@@ -721,6 +725,7 @@ class DataStore(object):
 
                         code3 = dircfg.get('code3')
                         if code3 is None:
+                            # XXX Should default via policy.
                             code3 = '000' if chain_id > 999 else "%03d" % (
                                 chain_id,)
 
@@ -766,6 +771,7 @@ class DataStore(object):
                 "blkfile_offset": 0,
                 "chain_id": chain_id,
                 "loader": loader,
+                "conf": conf,
                 }
             store.datadirs.append(d)
 
@@ -799,11 +805,8 @@ class DataStore(object):
 
             # Legacy config option.
             if chain.name in no_bit8_chains and \
-                    chain.block_version_bit_merge_mine == 8:
-                chain = Chain.create(
-                    id=chain.id, magic=chain.magic, name=chain.name,
-                    code3=chain.code3, address_version=chain.address_version,
-                    decimals=chain.decimals, policy="LegacyNoBit8")
+                    chain.has_feature('block_version_bit8_merge_mine'):
+                chain = Chain.create(src=chain, policy="LegacyNoBit8")
 
             store.chains_by.id[chain.id] = chain
             store.chains_by.name[chain.name] = chain
@@ -2459,7 +2462,7 @@ store._ddl['txout_approx'],
                    AND b.block_id = c.chain_last_block_id""", (chain_id,))
             if row:
                 loser_id, loser_height, loser_work = row
-                if loser_id <> top['block_id'] and \
+                if loser_id != top['block_id'] and \
                         store.binout_int(loser_work) >= top['chain_work']:
                     row = None
             if row:
@@ -2478,7 +2481,7 @@ store._ddl['txout_approx'],
                     winner_id = store.get_prev_block_id(winner_id)
                     winner_height -= 1
                 loser_height = None
-                while loser_id <> winner_id:
+                while loser_id != winner_id:
                     to_disconnect.insert(0, loser_id)
                     loser_id = store.get_prev_block_id(loser_id)
                     to_connect.insert(0, winner_id)
@@ -2709,8 +2712,8 @@ store._ddl['txout_approx'],
             return False
         chain = store.chains_by.id[chain_id]
 
-        conffile = dircfg.get("conf",
-                              os.path.join(dircfg['dirname'], "bitcoin.conf"))
+        conffile = dircfg['conf'] or chain.datadir_conf_file_name
+        conffile = os.path.join(dircfg['dirname'], conffile)
         try:
             conf = dict([line.strip().split("=", 1)
                          if "=" in line
@@ -2724,10 +2727,9 @@ store._ddl['txout_approx'],
         rpcuser     = conf.get("rpcuser", "")
         rpcpassword = conf["rpcpassword"]
         rpcconnect  = conf.get("rpcconnect", "127.0.0.1")
-        rpcport     = conf.get("rpcport",
-                               "18332" if "testnet" in conf else "8332")
+        rpcport     = conf.get("rpcport", chain.datadir_rpcport)
         url = "http://" + rpcuser + ":" + rpcpassword + "@" + rpcconnect \
-            + ":" + rpcport
+            + ":" + str(rpcport)
 
         def rpc(func, *params):
             store.rpclog.info("RPC>> %s %s", func, params)
@@ -3069,6 +3071,14 @@ store._ddl['txout_approx'],
             if not store.offer_existing_block(hash, chain.id):
                 b = chain.ds_parse_block(ds)
                 b["hash"] = hash
+
+                if (store.log.isEnabledFor(logging.DEBUG) and b["hashPrev"] == GENESIS_HASH_PREV):
+                    try:
+                        store.log.debug("Chain %d genesis tx: %s", chain.id,
+                                        b['transactions'][0]['__data__'].encode('hex'))
+                    except:
+                        pass
+
                 store.import_block(b, chain = chain)
                 if ds.read_cursor != end:
                     store.log.debug("Skipped %d bytes at block end",
